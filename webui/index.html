@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trợ lý CLI — K4 Ngày 1</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --border: #e2e2e5;
+    --text: #1c1c1e;
+    --muted: #6b6b72;
+    --accent: #2f6f4e;
+    --accent-soft: #e8f2ec;
+    --user-bubble: #2f6f4e;
+    --user-text: #ffffff;
+    --bot-bubble: #ffffff;
+    --error: #b3261e;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17171a;
+      --panel: #1f1f23;
+      --border: #33333a;
+      --text: #ececf1;
+      --muted: #9a9aa4;
+      --accent: #6bbd92;
+      --accent-soft: #22322a;
+      --user-bubble: #2f6f4e;
+      --user-text: #ffffff;
+      --bot-bubble: #26262b;
+      --error: #f2b8b5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .panel h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+  label { display: block; font-size: 13px; margin: 12px 0 4px; color: var(--muted); }
+  label:first-of-type { margin-top: 0; }
+  textarea, select, input[type=text] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+  textarea { resize: vertical; min-height: 78px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .stats { display: grid; gap: 6px; font-variant-numeric: tabular-nums; }
+  .stat { display: flex; justify-content: space-between; font-size: 14px; }
+  .stat span:first-child { color: var(--muted); }
+  .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 130px); min-height: 420px; }
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg { max-width: 78%; padding: 10px 13px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--user-bubble); color: var(--user-text); }
+  .msg.bot { align-self: flex-start; background: var(--bot-bubble); border: 1px solid var(--border); }
+  .msg.err { align-self: stretch; background: transparent; border: 1px solid var(--error); color: var(--error); font-size: 13px; max-width: 100%; }
+  .msg.note { align-self: stretch; background: var(--accent-soft); color: var(--accent); border: 0; font-size: 13px; max-width: 100%; padding: 6px 12px; }
+  .msg .who { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; opacity: .65; display: block; margin-bottom: 3px; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; margin: auto; max-width: 340px; }
+  .composer { display: flex; gap: 8px; margin-top: 12px; }
+  .composer textarea { min-height: 46px; max-height: 160px; }
+  button {
+    padding: 9px 18px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); font-weight: 400; padding: 5px 10px; font-size: 13px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .actions button { flex: 1; }
+  .badge { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .cursor::after { content: "▍"; opacity: .5; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Trợ lý CLI — bản web</h1>
+  <span class="sub">K4 Ngày 1 · streaming + history 4 lượt + thống kê chi phí</span>
+</header>
+
+<div class="layout">
+
+  <aside class="panel">
+    <h2>Cấu hình</h2>
+
+    <label for="persona">System prompt (persona)</label>
+    <textarea id="persona"></textarea>
+
+    <label for="model">Model</label>
+    <select id="model"></select>
+
+    <label for="temp">Temperature — <span id="tempVal">0.7</span></label>
+    <input type="range" id="temp" min="0" max="2" step="0.1" value="0.7">
+
+    <label for="topp">top_p — <span id="toppVal">1.0</span></label>
+    <input type="range" id="topp" min="0" max="1" step="0.05" value="1">
+    <p class="hint">Thường chỉ chỉnh <b>một</b> trong hai. <code>top_p = 1.0</code>
+    nghĩa là không cắt bớt phân phối, để temperature một mình quyết định độ ngẫu nhiên.</p>
+
+    <div style="margin-top:16px">
+      <h2>Thống kê phiên chat</h2>
+      <div class="stats">
+        <div class="stat"><span>Số lượt</span><b id="sTurns">0</b></div>
+        <div class="stat"><span>Token đã dùng</span><b id="sTokens">0</b></div>
+        <div class="stat"><span>Chi phí ước tính</span><b id="sCost">$0.00000000</b></div>
+        <div class="stat"><span>Ngữ cảnh gửi lên</span><b id="sCtx">0 message</b></div>
+        <div class="stat"><span>Model trả lời</span><b id="sModel">—</b></div>
+      </div>
+      <p class="hint">Chỉ <span class="badge">4 lượt cuối</span> được gửi lên API — lượt cũ hơn vẫn hiện ở đây nhưng model không còn thấy.</p>
+      <div class="actions">
+        <button type="button" class="ghost" id="export" disabled>Xuất file .md</button>
+        <button type="button" class="ghost" id="reset">Xóa hội thoại</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="panel chat-wrap">
+    <div id="messages">
+      <div class="empty" id="empty">Nhập câu hỏi bên dưới để bắt đầu. Trợ lý sẽ trả lời theo persona bạn đặt ở cột trái.</div>
+    </div>
+    <div class="composer">
+      <textarea id="input" placeholder="Nhập tin nhắn…  (Enter để gửi, Shift+Enter xuống dòng)"></textarea>
+      <button id="send">Gửi</button>
+    </div>
+  </main>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let history = [];              // toàn bộ hội thoại (để hiển thị)
+let turnLog = [];              // chi tiết từng lượt, dùng để xuất file .md
+let stats = { turns: 0, tokens: 0, cost: 0 };
+let busy = false;
+
+// Phản hồi của model có sẵn markdown (###, **) — bọc trong fence 4 backtick
+// để giữ nguyên văn, không phá cấu trúc file xuất ra
+const FENCE = "````";
+
+// ---- lưu cấu hình trong trình duyệt ---------------------------------------
+// Persona / model / temperature được nhớ lại sau khi F5. Chỉ CẤU HÌNH được
+// lưu — lịch sử hội thoại thì không (xem UI_SPEC.md §6).
+const STORE_KEY = "k4-webui-settings-v1";
+
+function loadSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(STORE_KEY)) || {};
+  } catch (e) {
+    return {};   // localStorage bị tắt (chế độ ẩn danh…) — dùng mặc định
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      persona: $("persona").value,
+      model: $("model").value,
+      temperature: $("temp").value,
+      top_p: $("topp").value,
+    }));
+  } catch (e) {
+    /* không lưu được thì thôi, không phá trải nghiệm đang dùng */
+  }
+}
+
+// ---- khởi tạo từ /api/config + cấu hình đã lưu -----------------------------
+fetch("/api/config").then(r => r.json()).then(cfg => {
+  const saved = loadSettings();
+
+  $("persona").value = saved.persona ?? cfg.default_persona;
+
+  const options = cfg.models.includes(cfg.model)
+    ? cfg.models
+    : [cfg.model, ...cfg.models];
+  // Model đã lưu chỉ dùng lại nếu server vẫn còn cung cấp — danh sách MODELS
+  // có thể đã đổi giữa hai lần chạy
+  const chosen = options.includes(saved.model) ? saved.model : cfg.model;
+  options.forEach(m => {
+    const o = document.createElement("option");
+    o.value = o.textContent = m;
+    if (m === chosen) o.selected = true;
+    $("model").appendChild(o);
+  });
+
+  // Gán rồi ĐỌC LẠI: <input type=range> tự kẹp giá trị về trong khoảng
+  $("temp").value = saved.temperature ?? "0.7";
+  $("tempVal").textContent = $("temp").value;
+  $("topp").value = saved.top_p ?? "1";
+  $("toppVal").textContent = $("topp").value;
+
+  if (!cfg.has_api_key) addError("Chưa có OPENAI_API_KEY trong .env — mọi lượt chat sẽ báo lỗi.");
+});
+
+$("temp").addEventListener("input", e => {
+  $("tempVal").textContent = e.target.value;
+  saveSettings();
+});
+$("topp").addEventListener("input", e => {
+  $("toppVal").textContent = e.target.value;
+  saveSettings();
+});
+$("persona").addEventListener("input", saveSettings);
+$("model").addEventListener("change", saveSettings);
+
+// ---- hiển thị --------------------------------------------------------------
+function addBubble(role, text) {
+  const empty = $("empty");
+  if (empty) empty.remove();
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  const who = document.createElement("span");
+  who.className = "who";
+  who.textContent = role === "user" ? "Bạn" : "Trợ lý";
+  div.appendChild(who);
+  div.appendChild(document.createTextNode(text));
+  $("messages").appendChild(div);
+  $("messages").scrollTop = $("messages").scrollHeight;
+  return div;
+}
+
+function addError(text) {
+  const div = document.createElement("div");
+  div.className = "msg err";
+  div.textContent = text;
+  $("messages").appendChild(div);
+  $("messages").scrollTop = $("messages").scrollHeight;
+}
+
+// Thông báo nhẹ (không phải lỗi) — ví dụ: đã tự chuyển sang model khác
+function addNote(text) {
+  const div = document.createElement("div");
+  div.className = "msg note";
+  div.textContent = text;
+  $("messages").appendChild(div);
+  $("messages").scrollTop = $("messages").scrollHeight;
+}
+
+function renderStats(ctxCount) {
+  $("sTurns").textContent = stats.turns;
+  $("sTokens").textContent = stats.tokens;
+  $("sCost").textContent = "$" + stats.cost.toFixed(8);
+  if (ctxCount !== undefined) $("sCtx").textContent = ctxCount + " message";
+}
+
+// ---- gửi một lượt ----------------------------------------------------------
+async function send() {
+  const text = $("input").value.trim();
+  if (!text || busy) return;
+
+  busy = true;
+  $("send").disabled = true;
+  $("input").value = "";
+  addBubble("user", text);
+
+  const bubble = addBubble("bot", "");
+  bubble.classList.add("cursor");
+  let reply = "";
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        history: history,
+        persona: $("persona").value,
+        model: $("model").value,
+        temperature: parseFloat($("temp").value),
+        top_p: parseFloat($("topp").value),
+      }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE: các sự kiện cách nhau bằng một dòng trống
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop();
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith("data:")) continue;
+        const evt = JSON.parse(line.slice(5));
+
+        if (evt.delta) {
+          reply += evt.delta;
+          bubble.lastChild.textContent = reply;
+          $("messages").scrollTop = $("messages").scrollHeight;
+        } else if (evt.notice) {
+          // Server báo model này hết quota và đang tự chuyển sang model khác.
+          // Chèn thông báo TRƯỚC bong bóng đang chờ để giữ đúng thứ tự.
+          const note = document.createElement("div");
+          note.className = "msg note";
+          note.textContent = evt.notice + " Đang tự chuyển sang model khác…";
+          $("messages").insertBefore(note, bubble);
+        } else if (evt.error) {
+          bubble.remove();
+          addError(evt.error);
+        } else if (evt.done) {
+          history.push({ role: "user", content: text });
+          history.push({ role: "assistant", content: reply });
+          turnLog.push({
+            user: text,
+            reply: reply,
+            model: evt.stats.model,
+            tokens: evt.stats.tokens,
+            cost: evt.stats.cost,
+            context_messages: evt.stats.context_messages,
+          });
+          stats.turns += 1;
+          stats.tokens += evt.stats.tokens;
+          stats.cost += evt.stats.cost;
+          renderStats(evt.stats.context_messages);
+          $("sModel").textContent = evt.stats.model;
+          $("export").disabled = false;
+        }
+      }
+    }
+  } catch (e) {
+    bubble.remove();
+    addError("Không gọi được server: " + e.message);
+  } finally {
+    bubble.classList.remove("cursor");
+    if (!reply) bubble.remove();
+    busy = false;
+    $("send").disabled = false;
+    $("input").focus();
+  }
+}
+
+// ---- xuất hội thoại ra file .md -------------------------------------------
+function stamp(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return {
+    human: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} `
+         + `${p(d.getHours())}:${p(d.getMinutes())}`,
+    file: `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`
+        + `-${p(d.getHours())}${p(d.getMinutes())}`,
+  };
+}
+
+function buildTranscript(now) {
+  const t = stamp(now);
+  const models = [...new Set(turnLog.map(x => x.model))];
+  const lines = [
+    "# Nhật ký hội thoại — Trợ lý K4 Ngày 1",
+    "",
+    `*Xuất lúc ${t.human} từ web UI (\`webui/index.html\`).*`,
+    "",
+    "## Cấu hình",
+    "",
+    "| Tham số | Giá trị |",
+    "|---|---|",
+    `| Model | ${models.join(", ") || "—"} |`,
+    `| Temperature | ${$("temp").value} |`,
+    `| top_p | ${$("topp").value} |`,
+    `| Số lượt | ${stats.turns} |`,
+    `| Token đã dùng | ${stats.tokens} |`,
+    `| Chi phí ước tính | $${stats.cost.toFixed(8)} |`,
+    "",
+    "### System prompt (persona)",
+    "",
+    FENCE + "text",
+    $("persona").value,
+    FENCE,
+    "",
+    "## Hội thoại",
+    "",
+  ];
+
+  turnLog.forEach((turn, i) => {
+    lines.push(
+      `### Lượt ${i + 1}`,
+      "",
+      "**Bạn:**",
+      "",
+      FENCE + "text", turn.user, FENCE,
+      "",
+      `**Trợ lý** — \`${turn.model}\`, ${turn.tokens} token, `
+        + `$${turn.cost.toFixed(8)}, ngữ cảnh ${turn.context_messages} message:`,
+      "",
+      FENCE + "text", turn.reply, FENCE,
+      "",
+    );
+  });
+
+  lines.push(
+    "---",
+    "",
+    "*Ghi chú: mỗi lượt chỉ có tối đa 4 lượt gần nhất (8 message) được gửi kèm",
+    "lên API — cột “ngữ cảnh” ở trên là số message thực sự đã gửi. Chi phí là",
+    "ước tính theo bảng giá trong `template.py`, không phải hóa đơn thật.*",
+    "",
+  );
+  return lines.join("\n");
+}
+
+function exportTranscript() {
+  if (!turnLog.length) return;
+  const now = new Date();
+  const blob = new Blob([buildTranscript(now)], {
+    type: "text/markdown;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `chat-${stamp(now).file}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+$("export").addEventListener("click", exportTranscript);
+$("send").addEventListener("click", send);
+$("input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+$("reset").addEventListener("click", () => {
+  history = [];
+  turnLog = [];
+  $("export").disabled = true;
+  $("sModel").textContent = "—";
+  stats = { turns: 0, tokens: 0, cost: 0 };
+  $("messages").innerHTML = '<div class="empty" id="empty">Đã xóa hội thoại. Nhập câu hỏi để bắt đầu lại.</div>';
+  renderStats(0);
+});
+</script>
+</body>
+</html>
